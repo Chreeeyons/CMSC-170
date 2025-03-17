@@ -1,19 +1,16 @@
 import pygame
 import random
-import heapq
-from collections import deque
 
 # Constants
 WIDTH, HEIGHT = 800, 600
 ROWS, COLS = 20, 20  # Maze dimensions
-TILE_SIZE = WIDTH // COLS
+TILE_SIZE = min(WIDTH // COLS, HEIGHT // ROWS)
 FPS = 60
 
 # Colors
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 GREEN = (0, 255, 0)
-BLUE = (0, 0, 255)
 RED = (255, 0, 0)
 
 # Directions (Right, Left, Down, Up)
@@ -41,12 +38,15 @@ class Maze:
                 stack.append((nx, ny))
             else:
                 stack.pop()
+        self.grid[self.rows - 1][self.cols - 1] = 0  # Ensure exit is clear
 
     def draw(self, screen):
         for y in range(self.rows):
             for x in range(self.cols):
                 if self.grid[y][x] == 1:
                     pygame.draw.rect(screen, WHITE, (x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE))
+        # Draw exit point
+        pygame.draw.rect(screen, RED, ((self.cols - 1) * TILE_SIZE, (self.rows - 1) * TILE_SIZE, TILE_SIZE, TILE_SIZE))
 
 class Player:
     def __init__(self, maze):
@@ -61,36 +61,6 @@ class Player:
     def draw(self, screen):
         pygame.draw.rect(screen, GREEN, (self.x*TILE_SIZE, self.y*TILE_SIZE, TILE_SIZE, TILE_SIZE))
 
-class AI:
-    def __init__(self, maze):
-        self.x, self.y = 0, 0
-        self.maze = maze
-        self.path = []
-        self.find_path()
-    
-    def find_path(self):
-        start = (0, 0)
-        goal = (self.maze.cols-1, self.maze.rows-1)
-        queue = deque([(start, [])])
-        visited = set()
-        while queue:
-            (x, y), path = queue.popleft()
-            if (x, y) == goal:
-                self.path = path
-                return
-            visited.add((x, y))
-            for dx, dy in DIRECTIONS:
-                nx, ny = x + dx, y + dy
-                if 0 <= nx < self.maze.cols and 0 <= ny < self.maze.rows and self.maze.grid[ny][nx] == 0 and (nx, ny) not in visited:
-                    queue.append(((nx, ny), path + [(nx, ny)]))
-    
-    def move(self):
-        if self.path:
-            self.x, self.y = self.path.pop(0)
-    
-    def draw(self, screen):
-        pygame.draw.rect(screen, RED, (self.x*TILE_SIZE, self.y*TILE_SIZE, TILE_SIZE, TILE_SIZE))
-
 # Game loop
 def main():
     pygame.init()
@@ -98,29 +68,31 @@ def main():
     clock = pygame.time.Clock()
     maze = Maze(ROWS, COLS)
     player = Player(maze)
-    ai = AI(maze)
     running = True
     
     while running:
         screen.fill(BLACK)
         maze.draw(screen)
         player.draw(screen)
-        ai.draw(screen)
         
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_LEFT:
-                    player.move(-1, 0)
-                elif event.key == pygame.K_RIGHT:
-                    player.move(1, 0)
-                elif event.key == pygame.K_UP:
-                    player.move(0, -1)
-                elif event.key == pygame.K_DOWN:
-                    player.move(0, 1)
         
-        ai.move()
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_LEFT]:
+            player.move(-1, 0)
+        if keys[pygame.K_RIGHT]:
+            player.move(1, 0)
+        if keys[pygame.K_UP]:
+            player.move(0, -1)
+        if keys[pygame.K_DOWN]:
+            player.move(0, 1)
+        
+        # Check if player has reached the exit point
+        if player.x == maze.cols - 1 and player.y == maze.rows - 1:
+            running = True
+        
         pygame.display.flip()
         clock.tick(FPS)
     
