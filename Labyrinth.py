@@ -70,37 +70,54 @@ class Player:
     def draw(self, screen):
         pygame.draw.rect(screen, GREEN, (self.x*TILE_SIZE+4, self.y*TILE_SIZE+4, TILE_SIZE-8, TILE_SIZE-8))
 
-def display_winning_animation(screen):
+class Enemy:
+    def __init__(self, maze):
+        self.maze = maze
+        self.x, self.y = self.find_random_open_spot()
+
+    def find_random_open_spot(self):
+        while True:
+            x = random.randint(0, self.maze.cols - 1)
+            y = random.randint(0, self.maze.rows - 1)
+            if self.maze.grid[y][x] == 0 and (x, y) != (0, 0):  # Ensure it's not the player's start position
+                return x, y
+
+    def move(self):
+        random.shuffle(DIRECTIONS)
+        for dx, dy in DIRECTIONS:
+            nx, ny = self.x + dx, self.y + dy
+            if 0 <= nx < self.maze.cols and 0 <= ny < self.maze.rows and self.maze.grid[ny][nx] == 0:
+                self.x, self.y = nx, ny
+                break  
+
+    def draw(self, screen):
+        pygame.draw.rect(screen, RED, (self.x * TILE_SIZE + 4, self.y * TILE_SIZE + 4, TILE_SIZE - 8, TILE_SIZE - 8))
+
+def display_message(screen, text, color):
     font = pygame.font.Font(None, 80)
-    alpha = 0
-    fade_speed = 5  
-    clock = pygame.time.Clock()
-    
-    for _ in range(50):  # Animation duration
-        screen.fill(BLACK)
-        text = font.render("YOU WON!", True, (255, 255, 0))  
-        text.set_alpha(alpha)  
-        screen.blit(text, (WIDTH // 2 - text.get_width() // 2, HEIGHT // 2 - text.get_height() // 2))
-        pygame.display.flip()
-        alpha = min(alpha + fade_speed, 255)  
-        clock.tick(30)
-    
-    pygame.time.delay(1500)  # Pause before quitting
+    text_render = font.render(text, True, color)
+    screen.fill(BLACK)
+    screen.blit(text_render, (WIDTH // 2 - text_render.get_width() // 2, HEIGHT // 2 - text_render.get_height() // 2))
+    pygame.display.flip()
+    pygame.time.delay(1500)
 
 def main():
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.display.set_caption("Maze Runner")
+    pygame.display.set_caption("Labyrinth")
     clock = pygame.time.Clock()
     maze = Maze(ROWS, COLS)
     player = Player(maze)
+    enemy = Enemy(maze)
+    enemy_move_counter = 0
     running = True
     
     while running:
         screen.fill(BLACK)
         maze.draw(screen)
         player.draw(screen)
-        
+        enemy.draw(screen)
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -114,12 +131,22 @@ def main():
             player.move(0, -1)
         if keys[pygame.K_DOWN]:
             player.move(0, 1)
-        
+
+        # Enemy moves every 10 frames
+        if enemy_move_counter % 10 == 0:
+            enemy.move()
+        enemy_move_counter += 1
+
         # Check if player reached exit
         if player.x == maze.cols - 1 and player.y == maze.rows - 1:
-            display_winning_animation(screen)
+            display_message(screen, "YOU WON!", (255, 255, 0))
             running = False  
-        
+
+        # Check if enemy caught player
+        if player.x == enemy.x and player.y == enemy.y:
+            display_message(screen, "GAME OVER", RED)
+            running = False  
+
         pygame.display.flip()
         clock.tick(FPS)
     
