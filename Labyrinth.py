@@ -188,7 +188,7 @@ def display_message(screen, message):
 def main():
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.display.set_caption("Maze Race")
+    pygame.display.set_caption("Labyrinth Game")
     clock = pygame.time.Clock()
 
     global ai
