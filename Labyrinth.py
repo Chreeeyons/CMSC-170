@@ -24,6 +24,7 @@ PINK = (255, 105, 180)  # Ghost Walk Power-Up Color
 
 DIRECTIONS = [(1, 0), (-1, 0), (0, 1), (0, -1)]
 
+
 class Maze:
     def __init__(self, rows, cols):
         self.rows = rows
@@ -224,6 +225,7 @@ def main():
         clock.tick(FPS)
 
     pygame.quit()
+
 
 if __name__ == "__main__":
     main()
