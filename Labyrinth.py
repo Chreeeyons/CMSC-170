@@ -120,7 +120,7 @@ class Player:
 
 class AI(Player):
     def __init__(self, maze):
-        super().__init__(maze, BLUE)
+        super().__init__(maze, RED)
         self.slow_down = 0
         self.path = self.find_path()
         self.move_delay = 10
