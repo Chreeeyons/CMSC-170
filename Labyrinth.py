@@ -67,15 +67,23 @@ class Maze:
     def draw(self, screen, player):
         for y in range(self.rows):
             for x in range(self.cols):
-                visibility_radius = FOG_RADIUS + 3 if player.reveal_timer > 0 else FOG_RADIUS
-                if abs(x - player.x) + abs(y - player.y) <= visibility_radius:
+                # If reveal_timer is active, show the entire map
+                if player.reveal_timer > 0:
+                    visible = True
+                else:
+                    # Otherwise, use the visibility radius
+                    visible = abs(x - player.x) + abs(y - player.y) <= FOG_RADIUS
+
+                if visible:
                     rect = pygame.Rect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE)
                     if self.grid[y][x] == 1:
                         pygame.draw.rect(screen, WHITE, rect)
                     pygame.draw.rect(screen, GRID_COLOR, rect, 1)
 
+        # Draw the exit point
         pygame.draw.rect(screen, RED, ((self.cols - 1) * TILE_SIZE, (self.rows - 1) * TILE_SIZE, TILE_SIZE, TILE_SIZE))
 
+        # Draw power-ups
         for px, py, color in self.power_ups:
             pygame.draw.rect(screen, color, (px * TILE_SIZE + 6, py * TILE_SIZE + 6, TILE_SIZE - 12, TILE_SIZE - 12))
 
