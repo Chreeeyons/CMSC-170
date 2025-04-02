@@ -19,6 +19,8 @@ GRID_COLOR = (60, 60, 60)
 YELLOW = (255, 255, 0)  
 BROWN = (139, 69, 19)  
 VIOLET = (138, 43, 226)  # Reveal Power-Up Color
+LIGHT_BLUE = (173, 216, 230)  # Freeze Enemy Power-Up Color
+PINK = (255, 105, 180)  # Ghost Walk Power-Up Color
 
 DIRECTIONS = [(1, 0), (-1, 0), (0, 1), (0, -1)]
 
@@ -55,11 +57,11 @@ class Maze:
 
     def generate_power_ups(self):
         power_ups = []
-        for _ in range(5):
+        for _ in range(6):  # Increased power-ups
             while True:
                 x, y = random.randint(0, self.cols - 1), random.randint(0, self.rows - 1)
                 if self.grid[y][x] == 0 and (x, y) not in [(0, 0), (self.cols - 1, self.rows - 1)]:
-                    power_ups.append((x, y, random.choice([YELLOW, BROWN, VIOLET])))  # Added VIOLET
+                    power_ups.append((x, y, random.choice([YELLOW, BROWN, VIOLET, LIGHT_BLUE, PINK])))  
                     break
         return power_ups
 
@@ -84,10 +86,13 @@ class Player:
         self.color = color
         self.speed_boost = 0
         self.move_delay = 0
-        self.reveal_timer = 0  # Timer for Reveal Power-Up
+        self.reveal_timer = 0
+        self.freeze_timer = 0  # Freeze Timer
+        self.ghost_mode = 0  # Ghost Walk Mode
+        self.start_time = pygame.time.get_ticks()  # Start time for the scoring system
 
     def move(self, dx, dy):
-        if self.move_delay > 0:
+        if self.move_delay > 0 or self.freeze_timer > 0:
             self.move_delay -= 1
             return  
 
@@ -95,32 +100,46 @@ class Player:
 
         for _ in range(move_speed):
             nx, ny = self.x + dx, self.y + dy
-            if 0 <= nx < self.maze.cols and 0 <= ny < self.maze.rows and self.maze.grid[ny][nx] == 0:
-                self.x, self.y = nx, ny
-                self.move_delay = 3  
+            if 0 <= nx < self.maze.cols and 0 <= ny < self.maze.rows:
+                if self.ghost_mode > 0 or self.maze.grid[ny][nx] == 0:
+                    self.x, self.y = nx, ny
+                    self.move_delay = 3  
 
-                for i, (px, py, color) in enumerate(self.maze.power_ups):
-                    if (self.x, self.y) == (px, py):
-                        if color == YELLOW:
-                            self.speed_boost = FPS * 2  
-                        elif color == BROWN:
-                            ai.slow_down = FPS * 2  
-                        elif color == VIOLET:  # Activate Reveal Power-Up
-                            self.reveal_timer = FPS * 3.5  # Lasts for 3.5 seconds
+                    for i, (px, py, color) in enumerate(self.maze.power_ups):
+                        if (self.x, self.y) == (px, py):
+                            if color == YELLOW:
+                                self.speed_boost = FPS * 2  
+                            elif color == BROWN:
+                                ai.slow_down = FPS * 2  
+                            elif color == VIOLET:
+                                self.reveal_timer = FPS * 3.5  
+                            elif color == LIGHT_BLUE:
+                                self.freeze_timer = FPS * random.randint(3, 5)  # Freeze AI for 3-5 seconds
+                            elif color == PINK:
+                                self.ghost_mode = FPS * 3  # Ghost walk for 3 seconds
 
-                        self.maze.power_ups.pop(i)
-                        break
+                            self.maze.power_ups.pop(i)
+                            break
 
     def update(self):
         if self.reveal_timer > 0:
-            self.reveal_timer -= 1  # Decrease reveal timer each frame
+            self.reveal_timer -= 1
+        if self.freeze_timer > 0:
+            self.freeze_timer -= 1
+        if self.ghost_mode > 0:
+            self.ghost_mode -= 1
 
     def draw(self, screen):
         pygame.draw.rect(screen, self.color, (self.x * TILE_SIZE + 4, self.y * TILE_SIZE + 4, TILE_SIZE - 8, TILE_SIZE - 8))
 
+    def get_score(self):
+        # Calculate score as the time elapsed since the start
+        elapsed_time = (pygame.time.get_ticks() - self.start_time) // 1000  # Convert milliseconds to seconds
+        return elapsed_time
+
 class AI(Player):
     def __init__(self, maze):
-        super().__init__(maze, BLUE)
+        super().__init__(maze, RED)
         self.slow_down = 0
         self.path = self.find_path()
         self.move_delay = 10
@@ -148,12 +167,13 @@ class AI(Player):
     def move_ai(self):
         if self.slow_down > 0:
             self.slow_down -= 1
-        elif self.move_delay == 0:
-            if self.path:
-                self.x, self.y = self.path.pop(0)
-            self.move_delay = 15
-        else:
-            self.move_delay -= 1
+        elif self.freeze_timer == 0:
+            if self.move_delay == 0:
+                if self.path:
+                    self.x, self.y = self.path.pop(0)
+                self.move_delay = 15
+            else:
+                self.move_delay -= 1
 
 def display_message(screen, message):
     font = pygame.font.Font(None, 72)
@@ -176,6 +196,7 @@ def main():
     ai = AI(maze)
 
     running = True
+
     while running:
         screen.fill(BLACK)
         maze.draw(screen, player)
@@ -195,14 +216,8 @@ def main():
         player.update()
         ai.move_ai()
 
-        if (player.x, player.y) == (COLS - 1, ROWS - 1) and (ai.x, ai.y) == (COLS - 1, ROWS - 1):
-            display_message(screen, "DRAW!")
-            break
-        elif (ai.x, ai.y) == (COLS - 1, ROWS - 1):
-            display_message(screen, "YOU LOST!")
-            break
-        elif (player.x, player.y) == (COLS - 1, ROWS - 1):
-            display_message(screen, "YOU WIN!")
+        if player.x == maze.cols - 1 and player.y == maze.rows - 1:  # Player reached the exit
+            display_message(screen, f"Score: {player.get_score()} seconds")
             break
 
         pygame.display.flip()
