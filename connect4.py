@@ -4,7 +4,7 @@ import sys
 import math
 import random
 
-
+# Game constants
 ROW_COUNT = 6
 COLUMN_COUNT = 7
 SQUARESIZE = 100
@@ -13,53 +13,46 @@ width = COLUMN_COUNT * SQUARESIZE
 height = (ROW_COUNT + 1) * SQUARESIZE
 size = (width, height)
 
-
-DARK_GREEN = (192, 199, 140)    
-MUTED_GREEN = (166, 179, 125)  
-CREAM = (254, 250, 224)  
-BROWN = (185, 148, 112)  
-
+# Colors
+DARK_GREEN = (192, 199, 140)
+MUTED_GREEN = (166, 179, 125)
+CREAM = (254, 250, 224)
+BROWN = (185, 148, 112)
 
 BLUE = DARK_GREEN
 BLACK = (0, 0, 0)
 RED = BROWN
 YELLOW = CREAM
 
-
+# Players
 PLAYER = 0
 AI = 1
 EMPTY = 0
 PLAYER_PIECE = 1
 AI_PIECE = 2
 WINDOW_LENGTH = 4
-DEPTH = 0  # Set to 0 for random AI moves
+DEPTH = 4  # Increased for smarter AI
 
-
+# Initialize Pygame
 pygame.init()
 myfont = pygame.font.SysFont("Arial", 80)
-
 
 def create_board():
     return np.zeros((ROW_COUNT, COLUMN_COUNT))
 
-
 def drop_piece(board, row, col, piece):
     board[row][col] = piece
 
-
 def is_valid_location(board, col):
     return board[ROW_COUNT - 1][col] == 0
-
 
 def get_next_open_row(board, col):
     for r in range(ROW_COUNT):
         if board[r][col] == 0:
             return r
 
-
 def print_board(board):
     print(np.flip(board, 0))
-
 
 def winning_move(board, piece):
     for c in range(COLUMN_COUNT - 3):
@@ -80,35 +73,30 @@ def winning_move(board, piece):
                 return True
     return False
 
-
 def evaluate_window(window, piece):
     score = 0
     opp_piece = PLAYER_PIECE if piece == AI_PIECE else AI_PIECE
 
-
     if window.count(piece) == 4:
         score += 100
     elif window.count(piece) == 3 and window.count(EMPTY) == 1:
-        score += 5
+        score += 10
     elif window.count(piece) == 2 and window.count(EMPTY) == 2:
-        score += 2
-
+        score += 5
 
     if window.count(opp_piece) == 3 and window.count(EMPTY) == 1:
-        score -= 100
-
+        score -= 80
+    elif window.count(opp_piece) == 2 and window.count(EMPTY) == 2:
+        score -= 4
 
     return score
-
 
 def score_position(board, piece):
     score = 0
 
-
     center_array = [int(i) for i in list(board[:, COLUMN_COUNT // 2])]
     center_count = center_array.count(piece)
     score += center_count * 3
-
 
     for r in range(ROW_COUNT):
         row_array = [int(i) for i in list(board[r, :])]
@@ -116,36 +104,29 @@ def score_position(board, piece):
             window = row_array[c:c + WINDOW_LENGTH]
             score += evaluate_window(window, piece)
 
-
     for c in range(COLUMN_COUNT):
         col_array = [int(i) for i in list(board[:, c])]
         for r in range(ROW_COUNT - 3):
             window = col_array[r:r + WINDOW_LENGTH]
             score += evaluate_window(window, piece)
 
-
     for r in range(ROW_COUNT - 3):
         for c in range(COLUMN_COUNT - 3):
             window = [board[r + i][c + i] for i in range(WINDOW_LENGTH)]
             score += evaluate_window(window, piece)
-
 
     for r in range(ROW_COUNT - 3):
         for c in range(COLUMN_COUNT - 3):
             window = [board[r + 3 - i][c + i] for i in range(WINDOW_LENGTH)]
             score += evaluate_window(window, piece)
 
-
     return score
-
 
 def get_valid_locations(board):
     return [c for c in range(COLUMN_COUNT) if is_valid_location(board, c)]
 
-
 def is_terminal_node(board):
     return winning_move(board, PLAYER_PIECE) or winning_move(board, AI_PIECE) or len(get_valid_locations(board)) == 0
-
 
 def minimax(board, depth, alpha, beta, maximizingPlayer):
     valid_locations = get_valid_locations(board)
@@ -160,7 +141,6 @@ def minimax(board, depth, alpha, beta, maximizingPlayer):
                 return (None, 0)
         else:
             return (None, score_position(board, AI_PIECE))
-
 
     if maximizingPlayer:
         value = -math.inf
@@ -178,7 +158,6 @@ def minimax(board, depth, alpha, beta, maximizingPlayer):
                 break
         return best_col, value
 
-
     else:
         value = math.inf
         best_col = random.choice(valid_locations)
@@ -195,19 +174,11 @@ def minimax(board, depth, alpha, beta, maximizingPlayer):
                 break
         return best_col, value
 
-
-def random_ai_move(board):
-    """Makes the AI choose a random valid column"""
-    valid_locations = get_valid_locations(board)
-    return random.choice(valid_locations)
-
-
 def draw_board(board):
     for c in range(COLUMN_COUNT):
         for r in range(ROW_COUNT):
             pygame.draw.rect(screen, BLUE, (c*SQUARESIZE, r*SQUARESIZE+SQUARESIZE, SQUARESIZE, SQUARESIZE))
             pygame.draw.circle(screen, BLACK, (int(c*SQUARESIZE + SQUARESIZE/2), int(r*SQUARESIZE + SQUARESIZE + SQUARESIZE/2)), RADIUS)
-
 
     for c in range(COLUMN_COUNT):
         for r in range(ROW_COUNT):
@@ -217,23 +188,22 @@ def draw_board(board):
                 pygame.draw.circle(screen, YELLOW, (int(c*SQUARESIZE + SQUARESIZE/2), height - int(r*SQUARESIZE + SQUARESIZE/2)), RADIUS)
     pygame.display.update()
 
-
+# Game setup
 board = create_board()
 print_board(board)
 game_over = False
 turn = 0
-
+turn_count = 0
 
 screen = pygame.display.set_mode(size)
 draw_board(board)
 pygame.display.update()
 
-
+# Main game loop
 while not game_over:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             sys.exit()
-
 
         if event.type == pygame.MOUSEMOTION:
             pygame.draw.rect(screen, BLACK, (0, 0, width, SQUARESIZE))
@@ -242,58 +212,48 @@ while not game_over:
                 pygame.draw.circle(screen, RED, (posx, int(SQUARESIZE/2)), RADIUS)
         pygame.display.update()
 
-
         if event.type == pygame.MOUSEBUTTONDOWN:
             pygame.draw.rect(screen, BLACK, (0, 0, width, SQUARESIZE))
-
-
             if turn == PLAYER:
                 posx = event.pos[0]
                 col = int(math.floor(posx / SQUARESIZE))
-
-
                 if is_valid_location(board, col):
                     row = get_next_open_row(board, col)
                     drop_piece(board, row, col, PLAYER_PIECE)
-
 
                     if winning_move(board, PLAYER_PIECE):
                         label = myfont.render("Player wins!", 1, RED)
                         screen.blit(label, (40, 10))
                         game_over = True
 
-
                     turn += 1
                     turn %= 2
+                    turn_count += 1
                     print_board(board)
                     draw_board(board)
 
+    if turn == AI and not game_over:
+        # Smarter AI move
+        if turn_count < 4:
+            col = random.choice(get_valid_locations(board))  # early randomness
+        else:
+            col, _ = minimax(board, DEPTH, -math.inf, math.inf, True)
 
-            if turn == AI and not game_over:
-                # Use random AI move for lower difficulty
-                col = random_ai_move(board)
+        if is_valid_location(board, col):
+            row = get_next_open_row(board, col)
+            drop_piece(board, row, col, AI_PIECE)
 
+            if winning_move(board, AI_PIECE):
+                label = myfont.render("AI wins!", 1, YELLOW)
+                screen.blit(label, (40, 10))
+                game_over = True
 
-                if is_valid_location(board, col):
-                    row = get_next_open_row(board, col)
-                    drop_piece(board, row, col, AI_PIECE)
+            print_board(board)
+            draw_board(board)
 
-
-                    if winning_move(board, AI_PIECE):
-                        label = myfont.render("AI wins!", 1, YELLOW)
-                        screen.blit(label, (40, 10))
-                        game_over = True
-
-
-                    print_board(board)
-                    draw_board(board)
-
-
-                    turn += 1
-                    turn %= 2
-
+            turn += 1
+            turn %= 2
+            turn_count += 1
 
     if game_over:
         pygame.time.wait(3000)
-
-
